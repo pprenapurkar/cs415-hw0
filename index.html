@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chicago: Outdoors + Night Sky</title>
+<style>
+:root{--bg:#0f1420;--card:#18202f;--text:#e8edf5;--dim:#8d99ad;--ok:#4cc38a;--warn:#f0b429;--bad:#ef5b5b;--accent:#6ea8ff}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:480px;padding:12px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+h1{font-size:18px;margin:4px 0 2px}
+.sub{color:var(--dim);font-size:12px;margin-bottom:12px}
+.need{margin:18px 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.big{font-size:44px;font-weight:600;line-height:1}
+.verdict{font-size:17px;font-weight:600;margin:2px 0 4px}
+.dim{color:var(--dim);font-size:13px}
+.note{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.4}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.banner{border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px}
+.banner.bad{background:#3a1d22;color:#ffb4b4}
+.banner.warn{background:#3a321a;color:#ffe08a}
+.hours{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+.h{min-width:52px;text-align:center;font-size:12px;background:#222c3f;border-radius:8px;padding:6px 4px}
+a{color:var(--accent)}
+.label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+</style>
+</head>
+<body>
+<h1>Chicago: Outdoors + Night Sky</h1>
+<div class="sub">Bronzeville · 31st Street Beach · <span id="updated">loading…</span></div>
+<div id="banners"></div>
+
+<div class="need">Need 1 · Current temperature</div>
+<div class="card" id="temp">Loading…</div>
+
+<div class="need">Need 2 · Umbrella / raincoat (next 6 hours)</div>
+<div class="card" id="rain">Loading…</div>
+
+<div class="need">Need 3 · Safe to be outside? Pollen, air &amp; beach</div>
+<div class="card" id="pollen">Loading…</div>
+<div class="card" id="beach">Loading…</div>
+
+<div class="need">Need 4 · Night sky</div>
+<div class="card"><div class="label">Best hour tonight</div><div id="tonight">Loading…</div></div>
+<div class="card"><div class="label">Golden hour</div><div id="golden">Loading…</div></div>
+<div class="card"><div class="label">Moon</div><div id="moon">Loading…</div></div>
+<div class="card"><div class="label">Upcoming sky events</div><div id="events">Loading…</div></div>
+<div class="card"><div class="label">Adler telescope night?</div><div id="adler">Loading…</div></div>
+
+<div class="note">Data: Open-Meteo (weather, waves, air quality) and the National Weather Service (alerts). Prototype for class; follow lifeguards and official NWS guidance for swimming.</div>
+
+<script>
+const HOME = {lat: 41.835, lon: -87.617};
+const BEACH = {lat: 41.8387, lon: -87.6097, name: "31st Street Beach"};
+const TZ = encodeURIComponent("America/Chicago");
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const getJSON = async url => { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); };
+const fail = (id, msg) => { $(id).innerHTML = `<div class="dim">${esc(msg)}</div>`; };
+const hourLabel = iso => { const h = +iso.slice(11,13); return (h%12||12) + (h<12 ? " AM" : " PM"); };
+const minOf = iso => +iso.slice(11,13)*60 + +iso.slice(14,16);
+const fmtMin = m => { m = ((m%1440)+1440)%1440; const h = Math.floor(m/60), mm = m%60; return (h%12||12) + ":" + String(mm).padStart(2,"0") + (h<12 ? " AM" : " PM"); };
+const hb = iso => iso.slice(0,11) + String(Math.max(0, +iso.slice(11,13)-1)).padStart(2,"0") + ":00";
+const ha = iso => iso.slice(0,11) + String(Math.min(23, +iso.slice(11,13)+1)).padStart(2,"0") + ":00";
+
+/* ---------- Need 1 + 2: temperature and umbrella ---------- */
+function renderWeather(w, banners) {
+  const c = w.current, H = w.hourly;
+  const nowHour = c.time.slice(0,13) + ":00";
+  const i0 = Math.max(0, H.time.findIndex(t => t >= nowHour));
+
+  $("temp").innerHTML =
+    `<div class="row"><div class="big">${Math.round(c.temperature_2m)}°F</div>` +
+    `<div class="dim">Feels like ${Math.round(c.apparent_temperature)}°F</div></div>`;
+
+  const idx = [0,1,2,3,4,5].map(k => i0+k).filter(i => i < H.time.length);
+  const probs = idx.map(i => H.precipitation_probability[i] || 0);
+  const amt = idx.reduce((s,i) => s + (H.precipitation[i] || 0), 0);
+  const maxP = Math.max(...probs);
+  let v, cls;
+  if (maxP >= 50 || amt >= 0.05) { v = "Bring an umbrella / raincoat"; cls = "bad"; banners.push({cls:"warn", html:"☂️ Rain likely in the next 6 hours: bring an umbrella."}); }
+  else if (maxP >= 20) { v = "Maybe pack an umbrella"; cls = "warn"; }
+  else { v = "No umbrella needed"; cls = "ok"; }
+  $("rain").innerHTML =
+    `<div class="verdict ${cls}">${v}</div>` +
+    `<div class="dim">Peak chance of rain ${maxP}% · about ${amt.toFixed(2)} in expected</div>` +
+    `<div class="hours">` + idx.map(i => `<div class="h">${hourLabel(H.time[i])}<br>${H.precipitation_probability[i] || 0}%</div>`).join("") + `</div>`;
+}
+
+/* ---------- Need 3: pollen (fallback), air quality, beach ---------- */
+function pollenSeason(mo) {
+  if (mo >= 3 && mo <= 5) return {inSeason:true, name:"Tree pollen season", tip:"Birch, oak and maple usually peak Apr–May."};
+  if (mo >= 6 && mo <= 7) return {inSeason:true, name:"Grass pollen season", tip:"Grass pollen usually peaks late May–June."};
+  if (mo >= 8 && mo <= 10) return {inSeason:true, name:"Weed / ragweed season", tip:"Ragweed typically runs from August until the first frost."};
+  return {inSeason:false, name:"Low pollen season", tip:"Late fall and winter are usually quiet."};
+}
+
+function renderAir(a, banners) {
+  const s = pollenSeason(new Date().getMonth() + 1);
+  let aqiHtml;
+  let bad = false;
+  if (a && a.current && a.current.us_aqi != null) {
+    const q = a.current.us_aqi;
+    let cat, cls;
+    if (q <= 50) { cat = "Good"; cls = "ok"; }
+    else if (q <= 100) { cat = "Moderate"; cls = "warn"; }
+    else if (q <= 150) { cat = "Unhealthy for sensitive groups"; cls = "bad"; bad = true; }
+    else { cat = "Unhealthy"; cls = "bad"; bad = true; }
+    aqiHtml = `<div class="verdict ${cls}">Air quality: ${q} (${cat})</div><div class="dim">Live US AQI · PM2.5 ${a.current.pm2_5 != null ? a.current.pm2_5 + " µg/m³" : "n/a"}</div>`;
+  } else {
+    aqiHtml = `<div class="dim">Live air quality unavailable right now.</div>`;
+  }
+  if (s.inSeason || bad) {
+    banners.push({cls:"warn", html:"😷 " + (bad ? "Poor air quality today" : s.name) + ": consider a mask or your allergy medication."});
+  }
+  $("pollen").innerHTML =
+    `<div class="label">Pollen &amp; air</div>` + aqiHtml +
+    `<div style="margin-top:10px"><b>${s.name}</b> <span class="dim">(seasonal estimate)</span></div>` +
+    `<div class="dim">${s.tip}</div>` +
+    `<div class="note"><b>Note:</b> a live pollen count needs a paid API key (the free options don't cover US pollen), so this card shows live air quality plus a seasonal estimate for Chicago. For live counts, check <a href="https://www.pollen.com/forecast/current/pollen/60616" target="_blank" rel="noopener">pollen.com</a>.</div>`;
+}
+
+function renderBeach(m, n, w, banners) {
+  const ref = w ? w.current.time : (m && m.hourly ? m.hourly.time[0] : null);
+  const nowHour = ref ? ref.slice(0,13) + ":00" : null;
+  let alerts = [];
+  if (n) alerts = (n.features || []).map(f => f.properties).filter(p => /beach|surf|rip current|small craft|gale|marine/i.test(p.event));
+  const hazard = alerts.filter(p => /beach|surf|rip current/i.test(p.event));
+
+  let wave = null, maxWave = null;
+  if (m && m.hourly && m.hourly.wave_height && nowHour) {
+    const t = m.hourly.time;
+    const i0 = Math.max(0, t.findIndex(x => x >= nowHour));
+    const vals = m.hourly.wave_height.slice(i0, i0+12).filter(v => v !== null && v !== undefined).map(v => v * 3.281);
+    if (vals.length) { wave = vals[0]; maxWave = Math.max(...vals); }
+  }
+
+  let v, cls;
+  if (hazard.length) {
+    v = "Don't swim: NWS beach hazard active"; cls = "bad";
+    banners.push({cls:"bad", html:`🌊 <b>${esc(hazard[0].event)}</b> for the lakefront. Stay out of the water.`});
+  } else if (maxWave !== null && maxWave >= 4) { v = "Big waves expected: skip swimming or be very careful"; cls = "bad"; }
+  else if (alerts.length || (maxWave !== null && maxWave >= 2)) { v = "Rough water: be careful"; cls = "warn"; }
+  else if (n === null) { v = "Couldn't check NWS alerts. Don't rely on this."; cls = "warn"; }
+  else { v = maxWave === null ? "No NWS beach alert (wave model had no data)" : "No NWS beach alert, waves look calm"; cls = "ok"; }
+
+  const alertHtml = alerts.map(p => `<div class="note"><b>${esc(p.event)}</b>${p.headline ? ": " + esc(p.headline) : ""}</div>`).join("");
+  $("beach").innerHTML =
+    `<div class="label">Beach swimming · ${esc(BEACH.name)}</div>` +
+    `<div class="verdict ${cls}">${v}</div>` +
+    `<div class="dim">Waves now ${wave === null ? "n/a" : wave.toFixed(1) + " ft"} · max next 12 h ${maxWave === null ? "n/a" : maxWave.toFixed(1) + " ft"}</div>` +
+    alertHtml +
+    `<div class="note">Lake Michigan has almost no tides, so this tracks waves and official NWS alerts instead. Wave numbers are model estimates. For swim advisories and bans see <a href="https://www.cpdbeaches.com" target="_blank" rel="noopener">cpdbeaches.com</a>.</div>`;
+}
+
+/* ---------- Need 4: night sky ---------- */
+function moonInfo(date) {
+  const syn = 29.530588853;
+  const ref = Date.UTC(2000, 0, 6, 18, 14);
+  const age = (((date.getTime() - ref) / 86400000) % syn + syn) % syn;
+  const frac = age / syn;
+  const illum = (1 - Math.cos(2 * Math.PI * frac)) / 2;
+  const names = ["New Moon","Waxing Crescent","First Quarter","Waxing Gibbous","Full Moon","Waning Gibbous","Last Quarter","Waning Crescent"];
+  const name = names[Math.floor(frac * 8 + 0.5) % 8];
+  const toFull = age < syn/2 ? syn/2 - age : syn - age + syn/2;
+  return {illum, name, toFull};
+}
+
+const SHOWERS = [["Quadrantids",1,3],["Lyrids",4,22],["Eta Aquariids",5,6],["Perseids",8,12],["Orionids",10,21],["Southern Taurids",11,5],["Leonids",11,17],["Geminids",12,14],["Ursids",12,22]];
+
+function renderSky(w, banners) {
+  const c = w.current, H = w.hourly, D = w.daily;
+  const nowStr = c.time, nowHour = nowStr.slice(0,13) + ":00";
+  let start, end;
+  if (nowStr < D.sunrise[0]) { start = nowHour; end = hb(D.sunrise[0]); }
+  else { const s = ha(D.sunset[0]); start = s > nowHour ? s : nowHour; end = hb(D.sunrise[1]); }
+  const idx = H.time.map((t,i) => i).filter(i => H.time[i] >= start && H.time[i] <= end);
+
+  let best = null;
+  if (!idx.length) {
+    fail("tonight", "No dark hours left in the forecast window.");
+  } else {
+    let bi = idx[0];
+    idx.forEach(i => { if (H.cloud_cover[i] < H.cloud_cover[bi]) bi = i; });
+    best = H.cloud_cover[bi];
+    const avg = Math.round(idx.reduce((s,i) => s + H.cloud_cover[i], 0) / idx.length);
+    let v, cls;
+    if (best <= 20) { v = "Clear sky: great for stargazing"; cls = "ok"; }
+    else if (best <= 50) { v = "Partly cloudy: okay"; cls = "warn"; }
+    else { v = "Mostly cloudy: poor"; cls = "bad"; }
+    $("tonight").innerHTML =
+      `<div class="verdict ${cls}">${v}</div>` +
+      `<div class="dim">Best hour: <b>${hourLabel(H.time[bi])}</b> (${best}% cloud) · average ${avg}% overnight</div>` +
+      `<div class="hours">` + idx.slice(0,14).map(i => `<div class="h">${hourLabel(H.time[i])}<br>${H.cloud_cover[i]}%</div>`).join("") + `</div>`;
+  }
+
+  const useToday = nowStr < D.sunset[0];
+  const sm = minOf(useToday ? D.sunset[0] : D.sunset[1]);
+  $("golden").innerHTML =
+    `<div class="verdict">${useToday ? "Tonight" : "Tomorrow"}: ${fmtMin(sm - 60)} – ${fmtMin(sm)}</div>` +
+    `<div class="dim">Sunset ${fmtMin(sm)}. Golden hour is approximated as the hour before sunset.</div>`;
+
+  const mo = moonInfo(new Date());
+  let a, acls;
+  if (best === null) { a = "No dark hours left in the forecast to judge."; acls = "dim"; }
+  else if (best <= 30) { a = "Good night for telescopes (clear sky)."; acls = "ok"; }
+  else { a = "Cloudy: telescope viewing is unlikely tonight."; acls = "bad"; }
+  $("adler").innerHTML =
+    `<div class="verdict ${acls}">${a}</div>` +
+    `<div class="dim">Moon is ${mo.name.toLowerCase()} (${Math.round(mo.illum * 100)}% lit), a good telescope target when it's up.</div>` +
+    `<div class="note">This is only a sky check. Telescope hours are set by the museum; see <a href="https://www.adlerplanetarium.org" target="_blank" rel="noopener">adlerplanetarium.org</a>.</div>`;
+}
+
+function renderStatic(banners) {
+  const mo = moonInfo(new Date());
+  const tip = mo.illum > 0.6 ? "Bright moon washes out faint stars and meteors. Great for lunar photography." : "Darker moon: better for stars and meteors.";
+  $("moon").innerHTML =
+    `<div class="verdict">${mo.name} · ${Math.round(mo.illum * 100)}% lit</div>` +
+    `<div class="dim">Full moon in about ${Math.round(mo.toFull)} days. ${tip}</div>`;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const list = SHOWERS.map(([name, m, d]) => {
+    let dt = new Date(today.getFullYear(), m-1, d, 22);
+    if (dt < today) dt = new Date(today.getFullYear()+1, m-1, d, 22);
+    const days = Math.round((new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()) - today) / 86400000);
+    return {name, dt, days, illum: moonInfo(dt).illum};
+  }).sort((x,y) => x.dt - y.dt).slice(0,3);
+
+  $("events").innerHTML = list.map(s => {
+    const when = s.days === 0 ? "peaks tonight" : s.days === 1 ? "peaks tomorrow" : `peaks in ~${s.days} days`;
+    const moonNote = s.illum > 0.5 ? `Bright moon (~${Math.round(s.illum*100)}%) will hide fainter meteors.` : `Dark moon (~${Math.round(s.illum*100)}%): good viewing.`;
+    return `<div style="margin-bottom:8px"><b>${s.name}</b> <span class="dim">${when} (around ${s.dt.toLocaleDateString([], {month:"short", day:"numeric"})})</span><div class="dim">${moonNote}</div></div>`;
+  }).join("") +
+  `<div class="note">Meteor shower peak dates are approximate (±1 day). Eclipses (including "red moon" lunar eclipses) are not listed: check <a href="https://www.timeanddate.com/eclipse/" target="_blank" rel="noopener">timeanddate.com/eclipse</a> for dates visible from Chicago.</div>`;
+
+  if (list[0].days <= 3) {
+    banners.push({cls:"warn", html:`🌠 ${list[0].name} ${list[0].days === 0 ? "peak tonight" : "peak in ~" + list[0].days + " day(s)"}. Check the sky card.`});
+  }
+}
+
+/* ---------- Load everything ---------- */
+async function load() {
+  const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${HOME.lat}&longitude=${HOME.lon}` +
+    `&current=temperature_2m,apparent_temperature&hourly=precipitation_probability,precipitation,cloud_cover` +
+    `&daily=sunrise,sunset&temperature_unit=fahrenheit&precipitation_unit=inch&timezone=${TZ}&forecast_days=2`;
+  const mUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${BEACH.lat}&longitude=${BEACH.lon}` +
+    `&hourly=wave_height&timezone=${TZ}&forecast_days=2`;
+  const aUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${HOME.lat}&longitude=${HOME.lon}` +
+    `&current=us_aqi,pm2_5&timezone=${TZ}`;
+  const nUrl = `https://api.weather.gov/alerts/active?point=${BEACH.lat},${BEACH.lon}`;
+
+  const [w, m, a, n] = await Promise.allSettled([getJSON(wUrl), getJSON(mUrl), getJSON(aUrl), getJSON(nUrl)]);
+  const banners = [];
+  const val = r => r.status === "fulfilled" ? r.value : null;
+
+  if (val(w)) {
+    try { renderWeather(val(w), banners); renderSky(val(w), banners); }
+    catch (e) { ["temp","rain","tonight","golden","adler"].forEach(id => fail(id, "Couldn't read weather data.")); }
+  } else {
+    ["temp","rain","tonight","golden","adler"].forEach(id => fail(id, "Weather data unavailable right now."));
+  }
+  try { renderBeach(val(m), val(n), val(w), banners); } catch (e) { fail("beach", "Beach data unavailable."); }
+  try { renderAir(val(a), banners); } catch (e) { fail("pollen", "Air quality unavailable."); }
+  renderStatic(banners);
+
+  $("banners").innerHTML = banners.map(b => `<div class="banner ${b.cls}">${b.html}</div>`).join("");
+  $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+}
+load();
+setInterval(load, 10 * 60 * 1000);
+</script>
+</body>
+</html>
