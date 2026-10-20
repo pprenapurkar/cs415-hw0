@@ -3,53 +3,104 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chicago: Outdoors + Night Sky</title>
+<title>Lakefront Weather</title>
 <style>
-:root{--bg:#0f1420;--card:#18202f;--text:#e8edf5;--dim:#8d99ad;--ok:#4cc38a;--warn:#f0b429;--bad:#ef5b5b;--accent:#6ea8ff}
+:root{--text:#eef2fb;--dim:#a8b3cc;--ok:#5fd6a0;--warn:#f5c04a;--bad:#ff7a7a;--accent:#2f8cff;--card:rgba(18,26,46,.74)}
 *{box-sizing:border-box}
-body{margin:0 auto;max-width:480px;padding:12px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
-h1{font-size:18px;margin:4px 0 2px}
-.sub{color:var(--dim);font-size:12px;margin-bottom:12px}
-.need{margin:18px 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
-.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px}
-.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.big{font-size:44px;font-weight:600;line-height:1}
-.verdict{font-size:17px;font-weight:600;margin:2px 0 4px}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--text);background:#0a1230;padding-bottom:96px;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+/* evening sky: mostly blue, a little orange/pink at the horizon */
+body::before{content:"";position:fixed;inset:0;z-index:-2;
+  background:
+   radial-gradient(130% 55% at 50% 108%, rgba(255,150,100,.38), rgba(255,110,150,.16) 45%, transparent 72%),
+   linear-gradient(180deg,#081028 0%,#10204a 40%,#23316a 72%,#3d3a74 90%,#5b4170 100%)}
+/* faint stars */
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.85;
+  background-image:
+   radial-gradient(1.3px 1.3px at 8% 10%,#fff,transparent),
+   radial-gradient(1px 1px at 22% 22%,#fff,transparent),
+   radial-gradient(1.5px 1.5px at 35% 8%,#fff,transparent),
+   radial-gradient(1px 1px at 48% 17%,#fff,transparent),
+   radial-gradient(1.4px 1.4px at 62% 6%,#fff,transparent),
+   radial-gradient(1px 1px at 74% 24%,#fff,transparent),
+   radial-gradient(1.5px 1.5px at 88% 12%,#fff,transparent),
+   radial-gradient(1px 1px at 15% 38%,#fff,transparent),
+   radial-gradient(1.2px 1.2px at 55% 33%,#fff,transparent),
+   radial-gradient(1px 1px at 92% 40%,#fff,transparent),
+   radial-gradient(1.2px 1.2px at 30% 52%,#fff,transparent),
+   radial-gradient(1px 1px at 80% 58%,#fff,transparent)}
+main{max-width:480px;margin:0 auto;padding:14px}
+.chip{display:inline-flex;align-items:center;gap:10px;background:var(--accent);border-radius:999px;padding:8px 16px 8px 12px}
+.chip .pin{font-size:15px}
+.chip b{display:block;font-size:16px;line-height:1.1}
+.chip small{display:block;font-size:12px;opacity:.85}
+.hero{text-align:center;padding:34px 0 18px}
+.temp{font-size:104px;font-weight:300;line-height:1;letter-spacing:-2px}
+.temp .deg{font-size:44px;vertical-align:top;position:relative;top:10px;margin-left:2px;font-weight:300}
+.cond{font-size:24px;font-weight:600;margin-top:6px}
+.feels{color:var(--dim);font-size:17px;margin-top:4px}
+.sec{font-size:20px;font-weight:600;margin:26px 4px 10px;scroll-margin-top:12px}
+.card{background:var(--card);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.07);border-radius:22px;padding:16px;margin-bottom:12px}
+.label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.verdict{font-size:18px;font-weight:600;margin:2px 0 4px}
 .dim{color:var(--dim);font-size:13px}
-.note{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.4}
+.note{font-size:12px;color:var(--dim);margin-top:10px;line-height:1.45}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-.banner{border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px}
-.banner.bad{background:#3a1d22;color:#ffb4b4}
-.banner.warn{background:#3a321a;color:#ffe08a}
-.hours{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
-.h{min-width:52px;text-align:center;font-size:12px;background:#222c3f;border-radius:8px;padding:6px 4px}
-a{color:var(--accent)}
-.label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.banner{border-radius:16px;padding:11px 14px;margin-bottom:8px;font-size:14px;line-height:1.35}
+.banner.bad{background:rgba(120,30,40,.62);color:#ffd0d0}
+.banner.warn{background:rgba(120,95,20,.55);color:#ffeaa8}
+.hours{display:flex;gap:6px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
+.h{min-width:54px;text-align:center;font-size:12px;background:rgba(255,255,255,.08);border-radius:12px;padding:8px 4px}
+a{color:#8fc1ff}
+.foot{font-size:11px;color:var(--dim);text-align:center;margin:18px 8px;line-height:1.5}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;
+  background:rgba(9,13,26,.94);border-top:1px solid rgba(255,255,255,.08);
+  padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs a{flex:1;text-align:center;font-size:12px;color:var(--dim);text-decoration:none;
+  padding:8px 0 10px;border-top:3px solid transparent}
+nav.tabs a span{display:block;font-size:20px;margin-bottom:2px}
+nav.tabs a.on{color:#fff;border-top-color:var(--accent)}
 </style>
 </head>
 <body>
-<h1>Chicago: Outdoors + Night Sky</h1>
-<div class="sub">Bronzeville · 31st Street Beach · <span id="updated">loading…</span></div>
-<div id="banners"></div>
+<main>
+  <div class="chip"><span class="pin">➤</span><div><b>Chicago</b><small id="updated">loading…</small></div></div>
 
-<div class="need">Need 1 · Current temperature</div>
-<div class="card" id="temp">Loading…</div>
+  <section id="today" data-tab="today">
+    <div class="hero">
+      <div class="temp"><span id="heroTemp">--</span><span class="deg">°</span></div>
+      <div class="cond" id="heroCond">Loading…</div>
+      <div class="feels" id="heroFeels"></div>
+    </div>
+    <div id="banners"></div>
+    <div class="card" id="rain">Loading…</div>
+  </section>
 
-<div class="need">Need 2 · Umbrella / raincoat (next 6 hours)</div>
-<div class="card" id="rain">Loading…</div>
+  <section id="outdoors" data-tab="outdoors">
+    <div class="sec">Outdoors</div>
+    <div class="card" id="pollen">Loading…</div>
+    <div class="card" id="beach">Loading…</div>
+  </section>
 
-<div class="need">Need 3 · Safe to be outside? Pollen, air &amp; beach</div>
-<div class="card" id="pollen">Loading…</div>
-<div class="card" id="beach">Loading…</div>
+  <section id="sky" data-tab="sky">
+    <div class="sec">Night sky</div>
+    <div class="card"><div class="label">Best hour tonight</div><div id="tonight">Loading…</div></div>
+    <div class="card"><div class="label">Golden hour</div><div id="golden">Loading…</div></div>
+    <div class="card"><div class="label">Moon</div><div id="moon">Loading…</div></div>
+    <div class="card"><div class="label">Upcoming sky events</div><div id="events">Loading…</div></div>
+    <div class="card"><div class="label">Adler telescope night?</div><div id="adler">Loading…</div></div>
+  </section>
 
-<div class="need">Need 4 · Night sky</div>
-<div class="card"><div class="label">Best hour tonight</div><div id="tonight">Loading…</div></div>
-<div class="card"><div class="label">Golden hour</div><div id="golden">Loading…</div></div>
-<div class="card"><div class="label">Moon</div><div id="moon">Loading…</div></div>
-<div class="card"><div class="label">Upcoming sky events</div><div id="events">Loading…</div></div>
-<div class="card"><div class="label">Adler telescope night?</div><div id="adler">Loading…</div></div>
+  <div class="foot">Data: Open-Meteo (weather, waves, air quality) and the National Weather Service (alerts).<br>Class prototype. Follow lifeguards and official NWS guidance for swimming.</div>
+</main>
 
-<div class="note">Data: Open-Meteo (weather, waves, air quality) and the National Weather Service (alerts). Prototype for class; follow lifeguards and official NWS guidance for swimming.</div>
+<nav class="tabs">
+  <a href="#today" data-tab="today" class="on"><span>☀️</span>Today</a>
+  <a href="#outdoors" data-tab="outdoors"><span>🌊</span>Outdoors</a>
+  <a href="#sky" data-tab="sky"><span>✨</span>Night sky</a>
+</nav>
 
 <script>
 const HOME = {lat: 41.835, lon: -87.617};
@@ -66,15 +117,30 @@ const fmtMin = m => { m = ((m%1440)+1440)%1440; const h = Math.floor(m/60), mm =
 const hb = iso => iso.slice(0,11) + String(Math.max(0, +iso.slice(11,13)-1)).padStart(2,"0") + ":00";
 const ha = iso => iso.slice(0,11) + String(Math.min(23, +iso.slice(11,13)+1)).padStart(2,"0") + ":00";
 
-/* ---------- Need 1 + 2: temperature and umbrella ---------- */
+function wmo(c) {
+  if (c === 0) return "Clear";
+  if (c === 1) return "Mostly clear";
+  if (c === 2) return "Partly cloudy";
+  if (c === 3) return "Overcast";
+  if (c === 45 || c === 48) return "Fog";
+  if (c >= 51 && c <= 57) return "Drizzle";
+  if (c >= 61 && c <= 67) return "Rain";
+  if (c >= 71 && c <= 77) return "Snow";
+  if (c >= 80 && c <= 82) return "Rain showers";
+  if (c === 85 || c === 86) return "Snow showers";
+  if (c >= 95) return "Thunderstorm";
+  return "";
+}
+
+/* ---------- Today: temperature + umbrella ---------- */
 function renderWeather(w, banners) {
   const c = w.current, H = w.hourly;
   const nowHour = c.time.slice(0,13) + ":00";
   const i0 = Math.max(0, H.time.findIndex(t => t >= nowHour));
 
-  $("temp").innerHTML =
-    `<div class="row"><div class="big">${Math.round(c.temperature_2m)}°F</div>` +
-    `<div class="dim">Feels like ${Math.round(c.apparent_temperature)}°F</div></div>`;
+  $("heroTemp").textContent = Math.round(c.temperature_2m);
+  $("heroCond").textContent = wmo(c.weather_code);
+  $("heroFeels").textContent = "Feels like " + Math.round(c.apparent_temperature) + "°";
 
   const idx = [0,1,2,3,4,5].map(k => i0+k).filter(i => i < H.time.length);
   const probs = idx.map(i => H.precipitation_probability[i] || 0);
@@ -85,12 +151,13 @@ function renderWeather(w, banners) {
   else if (maxP >= 20) { v = "Maybe pack an umbrella"; cls = "warn"; }
   else { v = "No umbrella needed"; cls = "ok"; }
   $("rain").innerHTML =
+    `<div class="label">Umbrella check · next 6 hours</div>` +
     `<div class="verdict ${cls}">${v}</div>` +
     `<div class="dim">Peak chance of rain ${maxP}% · about ${amt.toFixed(2)} in expected</div>` +
     `<div class="hours">` + idx.map(i => `<div class="h">${hourLabel(H.time[i])}<br>${H.precipitation_probability[i] || 0}%</div>`).join("") + `</div>`;
 }
 
-/* ---------- Need 3: pollen (fallback), air quality, beach ---------- */
+/* ---------- Outdoors: pollen (fallback), air quality, beach ---------- */
 function pollenSeason(mo) {
   if (mo >= 3 && mo <= 5) return {inSeason:true, name:"Tree pollen season", tip:"Birch, oak and maple usually peak Apr–May."};
   if (mo >= 6 && mo <= 7) return {inSeason:true, name:"Grass pollen season", tip:"Grass pollen usually peaks late May–June."};
@@ -149,14 +216,14 @@ function renderBeach(m, n, w, banners) {
 
   const alertHtml = alerts.map(p => `<div class="note"><b>${esc(p.event)}</b>${p.headline ? ": " + esc(p.headline) : ""}</div>`).join("");
   $("beach").innerHTML =
-    `<div class="label">Beach swimming · ${esc(BEACH.name)}</div>` +
+    `<div class="label">Beach swim check · ${esc(BEACH.name)}</div>` +
     `<div class="verdict ${cls}">${v}</div>` +
     `<div class="dim">Waves now ${wave === null ? "n/a" : wave.toFixed(1) + " ft"} · max next 12 h ${maxWave === null ? "n/a" : maxWave.toFixed(1) + " ft"}</div>` +
     alertHtml +
     `<div class="note">Lake Michigan has almost no tides, so this tracks waves and official NWS alerts instead. Wave numbers are model estimates. For swim advisories and bans see <a href="https://www.cpdbeaches.com" target="_blank" rel="noopener">cpdbeaches.com</a>.</div>`;
 }
 
-/* ---------- Need 4: night sky ---------- */
+/* ---------- Night sky ---------- */
 function moonInfo(date) {
   const syn = 29.530588853;
   const ref = Date.UTC(2000, 0, 6, 18, 14);
@@ -237,14 +304,14 @@ function renderStatic(banners) {
   `<div class="note">Meteor shower peak dates are approximate (±1 day). Eclipses (including "red moon" lunar eclipses) are not listed: check <a href="https://www.timeanddate.com/eclipse/" target="_blank" rel="noopener">timeanddate.com/eclipse</a> for dates visible from Chicago.</div>`;
 
   if (list[0].days <= 3) {
-    banners.push({cls:"warn", html:`🌠 ${list[0].name} ${list[0].days === 0 ? "peak tonight" : "peak in ~" + list[0].days + " day(s)"}. Check the sky card.`});
+    banners.push({cls:"warn", html:`🌠 ${list[0].name} ${list[0].days === 0 ? "peak tonight" : "peak in ~" + list[0].days + " day(s)"}. Check the Night sky section.`});
   }
 }
 
 /* ---------- Load everything ---------- */
 async function load() {
   const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${HOME.lat}&longitude=${HOME.lon}` +
-    `&current=temperature_2m,apparent_temperature&hourly=precipitation_probability,precipitation,cloud_cover` +
+    `&current=temperature_2m,apparent_temperature,weather_code&hourly=precipitation_probability,precipitation,cloud_cover` +
     `&daily=sunrise,sunset&temperature_unit=fahrenheit&precipitation_unit=inch&timezone=${TZ}&forecast_days=2`;
   const mUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${BEACH.lat}&longitude=${BEACH.lon}` +
     `&hourly=wave_height&timezone=${TZ}&forecast_days=2`;
@@ -258,9 +325,13 @@ async function load() {
 
   if (val(w)) {
     try { renderWeather(val(w), banners); renderSky(val(w), banners); }
-    catch (e) { ["temp","rain","tonight","golden","adler"].forEach(id => fail(id, "Couldn't read weather data.")); }
+    catch (e) {
+      $("heroCond").textContent = "Couldn't read weather data";
+      ["rain","tonight","golden","adler"].forEach(id => fail(id, "Couldn't read weather data."));
+    }
   } else {
-    ["temp","rain","tonight","golden","adler"].forEach(id => fail(id, "Weather data unavailable right now."));
+    $("heroCond").textContent = "Weather unavailable";
+    ["rain","tonight","golden","adler"].forEach(id => fail(id, "Weather data unavailable right now."));
   }
   try { renderBeach(val(m), val(n), val(w), banners); } catch (e) { fail("beach", "Beach data unavailable."); }
   try { renderAir(val(a), banners); } catch (e) { fail("pollen", "Air quality unavailable."); }
@@ -271,6 +342,13 @@ async function load() {
 }
 load();
 setInterval(load, 10 * 60 * 1000);
+
+/* highlight the bottom tab for the section on screen */
+const tabs = document.querySelectorAll("nav.tabs a");
+const io = new IntersectionObserver(es => {
+  es.forEach(e => { if (e.isIntersecting) tabs.forEach(t => t.classList.toggle("on", t.dataset.tab === e.target.dataset.tab)); });
+}, {rootMargin: "-40% 0px -50% 0px"});
+document.querySelectorAll("section[data-tab]").forEach(s => io.observe(s));
 </script>
 </body>
 </html>
